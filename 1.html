@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSTI 人格测试 - 你是什么成分的CS2玩家？</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CS2 风格自定义变量 */
+        :root {
+            --cs-yellow: #f59e0b; /* 标志性橙黄 */
+            --cs-dark: #1f2937;
+            --cs-darker: #111827;
+        }
+
+        body {
+            background-color: var(--cs-darker);
+            color: #f3f4f6;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: radial-gradient(circle at center, #374151 0%, var(--cs-darker) 100%);
+            min-height: 100vh;
+        }
+
+        /* 仿游戏UI的斜角按钮 */
+        .btn-cs {
+            background-color: var(--cs-dark);
+            border: 2px solid #4b5563;
+            color: #d1d5db;
+            transition: all 0.2s ease-in-out;
+            clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+        }
+
+        .btn-cs:hover {
+            background-color: var(--cs-yellow);
+            color: var(--cs-darker);
+            border-color: var(--cs-yellow);
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.5);
+        }
+
+        /* 进度条样式 */
+        .progress-bar-fill {
+            background: linear-gradient(90deg, #d97706, #fbbf24);
+            transition: width 0.3s ease;
+        }
+
+        /* 稍微加点像素风的标题，致敬你的小爱好 */
+        .title-glitch {
+            text-shadow: 2px 2px 0px rgba(245,158,11,0.5);
+            letter-spacing: 2px;
+        }
+
+        #result-screen { display: none; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center p-4">
+
+    <div id="app-container" class="w-full max-w-2xl bg-gray-800 rounded-lg shadow-2xl border border-gray-700 overflow-hidden mt-10">
+        
+        <div class="bg-gray-900 p-4 border-b border-gray-700 flex justify-between items-center">
+            <h1 class="text-xl font-bold text-yellow-500 title-glitch">CSTI 人格分析终端</h1>
+            <div id="progress-text" class="text-sm text-gray-400">准备部署</div>
+        </div>
+
+        <div class="w-full bg-gray-700 h-1">
+            <div id="progress-bar" class="progress-bar-fill h-1 w-0"></div>
+        </div>
+
+        <div class="p-8 min-h-[400px] flex flex-col justify-center">
+            
+            <div id="welcome-screen" class="text-center space-y-6">
+                <h2 class="text-3xl font-black text-white">你究竟是神仙还是战犯？</h2>
+                <p class="text-gray-400 leading-relaxed">MBTI 已经过时了。在 CS2 的赛博战场上，只有 16 种终极成分。<br>回答 16 个直击灵魂的拷问，测出你的隐藏属性。</p>
+                <button onclick="startTest()" class="btn-cs mt-6 px-10 py-4 text-xl font-bold w-full uppercase tracking-widest">
+                    接受匹配 (Accept)
+                </button>
+            </div>
+
+            <div id="quiz-screen" class="hidden space-y-8">
+                <div class="text-yellow-500 font-mono text-sm tracking-widest" id="question-number">MISSION 01 / 16</div>
+                <h3 id="question-text" class="text-2xl font-semibold leading-relaxed">题目加载中...</h3>
+                <div id="options-container" class="space-y-4 flex flex-col">
+                    </div>
+            </div>
+
+            <div id="result-screen" class="hidden flex flex-col items-center text-center space-y-6 animate-fade-in">
+                <div class="text-yellow-500 text-6xl font-black tracking-tighter" id="result-code">WAFC</div>
+                <h2 class="text-3xl font-bold text-white" id="result-title">加载中...</h2>
+                <div class="flex space-x-2 text-sm text-yellow-400 font-mono" id="result-tags">
+                    </div>
+                <div class="bg-gray-900 p-6 rounded border border-gray-700 text-left w-full mt-4">
+                    <p class="text-gray-300 leading-relaxed italic" id="result-desc"></p>
+                </div>
+                <div class="w-full flex justify-between items-center text-gray-500 text-sm mt-4 border-t border-gray-700 pt-4">
+                    <span id="result-match">匹配度计算中...</span>
+                    <button onclick="location.reload()" class="hover:text-yellow-500 underline transition-colors">重新匹配</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="mt-8 text-center text-gray-500 text-xs max-w-lg">
+        <p>本测试仅供娱乐，切勿对号入座，小心红温。</p>
+        <p class="mt-1">Powered by Cloudflare Pages | CSTI 委员会</p>
+    </div>
+
+<script>
+    // ----------------------------------------------------
+    // 1. 数据配置：题库 (我们之前写的 16 道题合集)
+    // ----------------------------------------------------
+    const questions = [
+        // Movement (W vs S)
+        { dim: "movement", q: "作为 T 阵营，指挥开局喊了 'Rush B Don't Stop'，此时你的真实操作是：", 
+          opt: [ { t: "按住 W 键第一个冲破烟雾弹，哪怕被白瞎了狗眼也要死在包点里，死后大喊“补枪啊！”", v: 1 }, { t: "买好烟闪切着刀跑在队伍最后面，美其名曰“帮兄弟们断后”，实则是看谁死了好捡他的 AK。", v: -1 } ] },
+        { dim: "movement", q: "作为 CT 防守 Mirage A区，此时中路队友暴毙，A二楼听到明显脚步，你会：", 
+          opt: [ { t: "最好的防守就是进攻！直接端着枪拉出 A 二楼找人干拉，主打一个出其不意！", v: 1 }, { t: "默默退到警家或跳下黑屋，架好枪缝，只要我不出去，就没有人能杀我。", v: -1 } ] },
+        { dim: "movement", q: "T阵营下包后，进入 2v2 残局，C4 还在滴滴作响，你会：", 
+          opt: [ { t: "主动出击！像疯狗一样去找 CT 的位置，把他们全杀光就不用守包了！", v: 1 }, { t: "找一个最阴暗的死角蹲下，鼠标都不敢动一下，必须听到拆包声音才肯露头。", v: -1 } ] },
+        { dim: "movement", q: "如果让你选择一种职业选手的击杀风格，你觉得自己更像谁？", 
+          opt: [ { t: "donk：电子竞技不需要大脑！按住 W 键冲锋，见面就是一发爆头，对着屏幕狂吼！", v: 1 }, { t: "ZywOo：永远在最安全的位置架枪，等对面主动撞到我的枪口上，主打毫不费力。", v: -1 } ] },
+
+        // Combat (A vs U)
+        { dim: "combat", q: "残局 1v1，你明确知道对方躲在掩体后，手里有一颗火和满装 AK，你会：", 
+          opt: [ { t: "切道具太慢了！直接大身位拉出去干拉！电子竞技不需要视力，准星到了头自然会爆！", v: 1 }, { t: "大脑疯狂计算抛物线，试图扔一颗完美的几何火把他逼出来，结果因为切道具被对面拉出来打死。", v: -1 } ] },
+        { dim: "combat", q: "排位匹配寻找对局时的等待时间，你通常在干嘛？", 
+          opt: [ { t: "在死斗服或者 Aim Botz 疯狂拉枪线，假装自己是 NiKo，鼠标甩到手腕疼。", v: 1 }, { t: "开个跑图服务器，练习从 100 个不同的刁钻角度扔各种没用的单向烟和瞬爆闪。", v: -1 } ] },
+        { dim: "combat", q: "进攻方推点遇到 CT 封了一颗死烟，你怎么处理？", 
+          opt: [ { t: "化身“烟中恶鬼”，混在烟雾边缘疯狂混烟，或者直接干拉穿烟，搏一搏单车变摩托！", v: 1 }, { t: "绝对不碰烟雾弹一下！老老实实等烟散，或者掏出反清闪组合拳慢慢清点。", v: -1 } ] },
+        { dim: "combat", q: "你在 Nuke 拿着沙鹰，完美绕到了对面 s1mple 的背身，此时你会：", 
+          opt: [ { t: "NiKo 附体！果断开枪！如果没打中，就一拳把桌子砸烂并大喊“这破游戏有 BUG ！”", v: 1 }, { t: "绝对不信任自己的沙鹰弹道，默默切出小刀准备右键，或者不敢动等队友补枪。", v: -1 } ] },
+
+        // Economy (F vs E)
+        { dim: "economy", q: "手枪局输了，第二局全队经济 1500 块，此时你的购买面板是：", 
+          opt: [ { t: "无甲沙鹰 / 鸟狙！只要我能爆头我就是神！经济局也要打出长枪局的气势！", v: 1 }, { t: "老老实实全 Eco（一毛不拔），最多买个 P250。必须保证下半场能起大狙。", v: -1 } ] },
+        { dim: "economy", q: "关键局比分 14:14，你只有 4700 块钱，你会怎么买？", 
+          opt: [ { t: "买 AWP！护甲？道具？不需要！“玻璃大炮”才是狙击手的浪漫，一枪定音！", v: 1 }, { t: "买 M4/AK + 全甲 + 道具，甚至还会看队友差不差钱帮发一把，稳扎稳打才是王道。", v: -1 } ] },
+        { dim: "economy", q: "队友是个残血的大哥，经济崩盘求发枪，你刚好有 3500 块，你会：", 
+          opt: [ { t: "假装没听见。自己买把法玛斯+半甲拉倒，枪给残血就是白给，我还不如自己杀。", v: 1 }, { t: "宁可自己无甲沙鹰，也要给大哥发一把英雄 AK。大哥，这局全靠你了！", v: -1 } ] },
+        { dim: "economy", q: "队伍经济见底，但你坚持掏空钱包强起了一把大狙，结果开局 10 秒暴毙，此时你的反应是：", 
+          opt: [ { t: "化身 Danking，摘下耳机，仰天长啸，眼含热泪地吟唱：“白了少年头，空！悲！切！”", v: 1 }, { t: "默默在公屏打出“my bad”，捡起地上的 P250，下半局再也不敢看大狙一眼。", v: -1 } ] },
+
+        // Comm (C vs M)
+        { dim: "comm", q: "你开局 30 秒就不幸白给（被首杀），接下来的两分钟你会做什么？", 
+          opt: [ { t: "切到队友视角化身微操大师：“左边左边！换子弹啊！别保枪，上去拼了！”", v: 1 }, { t: "叹一口气，拿起手机开始刷短视频，直到下一局开局音乐响起。", v: -1 } ] },
+        { dim: "comm", q: "队友在 1v1 残局中犯了一个极其愚蠢的失误导致输掉比赛，你的反应是：", 
+          opt: [ { t: "立刻按住语音键：“兄弟你在玩什么啊？这背身都能马？我奶奶用脚玩都比你准！”", v: 1 }, { t: "在公屏冷漠地打出两个字母：“nt”，然后在现实中疯狂翻白眼。", v: -1 } ] },
+        { dim: "comm", q: "刚匹配进服务器的热身阶段，你的第一件事是：", 
+          opt: [ { t: "开麦：“Hello team, 报一下位置兄弟们，谁打狙？谁是指挥？打什么战术？”", v: 1 }, { t: "默默在记分板把对面全部屏蔽，有时候甚至把太吵的队友也屏蔽了，主打沉浸式单机。", v: -1 } ] },
+        { dim: "comm", q: "当你的队友在残局中打出了一个极其“脑溢血”的下饭操作时，你的麦克风里会传出：", 
+          opt: [ { t: "s1mple 附体：“Faking bish! Why you bully me?” 化身顶级压力怪。", v: 1 }, { t: "深吸一口气，保持闭麦。打开记分板，点击该队友，选择“举报：破坏游戏体验”。", v: -1 } ] }
+    ];
+
+    // ----------------------------------------------------
+    // 2. 数据配置：结果图鉴 (选取了代表性的文案)
+    // ----------------------------------------------------
+    const resultsData = {
+        "WAFC": { title: "红温战神 / 狂暴突破口", match: "100%", tags: ["#W键焊死", "#拒绝道具", "#强起神教", "#泉水指挥官"], 
+                  desc: "你是团队的原子弹——不仅炸对面，还炸队友的心态。开局10秒你必然出现在包点，要么拿三个头，要么白给。剩下的1分50秒，全队都在听你复盘他们为什么不给你拉枪。" },
+        "SUEM": { title: "赛博地缚灵 / 顶级诱饵弹", match: "95%", tags: ["#Shift键传人", "#道具解说员", "#理财大师", "#冷漠路人"], 
+                  desc: "队友在A点血流成河，你在B二楼静步摸烟；队友在B点拼死下包，你在A大架狙保枪。你背了500个烟雾弹坐标，但对枪准星从来没上过头。只要C4没掉在你脚下，你就是过客。" },
+        "SUFC": { title: "空悲切 / 悲剧艺术大师", match: "99%", tags: ["#强起大狙", "#几何烟火", "#激情解说", "#仰天长啸"], 
+                  desc: "你总是在最没钱的时候强起大狙，然后在中门被对面用200块的闪光弹送走。你摘下耳机，眼含热泪，吟唱起《满江红》。你懂技术，但你更懂什么叫悲剧英雄。" },
+        "WAFM": { title: "孤勇者 / 沉默的代练", match: "90%", tags: ["#人狠话不多", "#起枪就是干", "#拒绝交流", "#孤胆英雄"], 
+                  desc: "进服关掉语音，出场必买AK。你不需要战术，你只需要准星。你是队友眼中的大腿，也是对面眼中的挂哥。你从不报点，因为你觉得“我都杀了三个了，剩下两个你们还打不过？”" },
+        "SAEC": { title: "键盘微操师 / 泉水导师", match: "85%", tags: ["#稳健枪法", "#保枪狂魔", "#战术教父", "#指点江山"], 
+                  desc: "你自己打球时畏畏缩缩，队友打球时你重拳出击。你非常珍惜KD，通常死在最后。死后你会立刻接管队友的键盘，用你的嘴帮他完成那个1v4的残局。你的理论水平达到了Major级别，但操作停留在了白银。" },
+        "WUFC": { title: "P90 战术大师 / 狂暴烟鬼", match: "100%", tags: ["#RushB", "#乱丢烟火", "#压力大师", "#全场最吵"], 
+                  desc: "只要有闪光弹，你连自己都闪。你推崇“暴力美学”，喜欢用道具把包点弄成马戏团，然后冲进去乱杀（或被乱杀）。你是队伍的节奏带动者，也是全场最容易红温的人。" },
+        "SAEM": { title: "背身描边艺术家", match: "75%", tags: ["#极简主义", "#枪法玄学", "#沉默是金", "#理财精英"], 
+                  desc: "你很稳，总是能找到最完美的背身机会，然后...三枪全部打在对面的背包上。你从不找借口，只是默默在心里把枪卖了。你从不给团队添麻烦，除了你没拿到的那些击杀。" },
+        "WUEE": { title: "大冤种 / 团队润滑剂", match: "80%", tags: ["#全甲发枪", "#背烟小能手", "#首当其冲", "#无私奉献"], 
+                  desc: "你是这个游戏的圣人。自己买沙鹰给大哥发大狙；帮队友拉枪线自己被打死。你拿着最差的经济干最累的活。你是团队的脊梁，但记分板底部的排名是你永远的痛。" }
+        // 注意：为了演示代码长度，这里省略了后 8 种结果。
+        // 在真实项目中，你可以增加 fallback 逻辑。
+    };
+
+    // 兜底默认结果
+    const fallbackResult = {
+        title: "薛定谔的 CS 玩家", match: "???%", tags: ["#状态起伏", "#成分复杂"],
+        desc: "你的成分太复杂了，简直是 CS2 里的缝合怪！时而像神，时而像鬼，匹配不到绝对单一的人格模型。"
+    };
+
+    // ----------------------------------------------------
+    // 3. 核心运行逻辑
+    // ----------------------------------------------------
+    let currentQuestionIndex = 0;
+    let scores = { movement: 0, combat: 0, economy: 0, comm: 0 };
+
+    // 每次测试前打乱题目顺序（可选，增加可玩性）
+    const shuffledQuestions = questions.sort(() => 0.5 - Math.random());
+
+    function startTest() {
+        document.getElementById('welcome-screen').style.display = 'none';
+        document.getElementById('quiz-screen').style.display = 'block';
+        showQuestion();
+    }
+
+    function showQuestion() {
+        const q = shuffledQuestions[currentQuestionIndex];
+        
+        // 更新 UI 进度
+        document.getElementById('question-number').innerText = `MISSION ${String(currentQuestionIndex + 1).padStart(2, '0')} / 16`;
+        const progressPercent = ((currentQuestionIndex) / 16) * 100;
+        document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+        document.getElementById('progress-text').innerText = `${currentQuestionIndex}/16 Data Collected`;
+
+        // 渲染题目
+        document.getElementById('question-text').innerText = q.q;
+        
+        // 渲染选项
+        const optsContainer = document.getElementById('options-container');
+        optsContainer.innerHTML = '';
+        
+        q.opt.forEach(option => {
+            const btn = document.createElement('button');
+            btn.className = "btn-cs px-6 py-4 text-left text-lg flex items-center";
+            // 简单的随机图标作为子弹
+            btn.innerHTML = `<span class="text-yellow-500 mr-4 font-bold">></span> ${option.t}`;
+            btn.onclick = () => handleAnswer(q.dim, option.v);
+            optsContainer.appendChild(btn);
+        });
+    }
+
+    function handleAnswer(dimension, value) {
+        // 记录分数
+        scores[dimension] += value;
+        
+        currentQuestionIndex++;
+        
+        if (currentQuestionIndex < 16) {
+            showQuestion();
+        } else {
+            calculateResult();
+        }
+    }
+
+    function calculateResult() {
+        // 1. 判断最终性格代号
+        const m = scores.movement > 0 ? 'W' : 'S';
+        const c = scores.combat > 0 ? 'A' : 'U';
+        const e = scores.economy > 0 ? 'F' : 'E'; // F是强起赌徒，E是理财
+        const cm = scores.comm > 0 ? 'C' : 'M';
+        
+        const resultCode = `${m}${c}${e}${cm}`;
+        const finalResult = resultsData[resultCode] || fallbackResult;
+
+        // 2. 隐藏测试，显示结果
+        document.getElementById('quiz-screen').style.display = 'none';
+        document.getElementById('progress-bar').style.width = `100%`;
+        document.getElementById('progress-text').innerText = `Analysis Complete`;
+        
+        const resultScreen = document.getElementById('result-screen');
+        resultScreen.style.display = 'flex';
+
+        // 3. 填充数据
+        document.getElementById('result-code').innerText = resultCode;
+        document.getElementById('result-title').innerText = finalResult.title;
+        document.getElementById('result-desc').innerText = finalResult.desc;
+        document.getElementById('result-match').innerText = `综合匹配度: ${finalResult.match}`;
+        
+        const tagsContainer = document.getElementById('result-tags');
+        tagsContainer.innerHTML = '';
+        finalResult.tags.forEach(tag => {
+            const span = document.createElement('span');
+            span.innerText = tag;
+            span.className = "bg-gray-800 px-2 py-1 rounded";
+            tagsContainer.appendChild(span);
+        });
+    }
+
+</script>
+</body>
+</html>
